@@ -23,7 +23,7 @@ if (argv.type === "crypto") {
     )
     .then((response) => {
       if (response.data.Response === "Error") {
-        log(colors.red(`${response.data.Message}\n`));
+        log(colors.red(`${response.data.Message} 😖\n`));
         return;
       }
       const historicalData = response.data.Data.Data.reduce((acc, day) => {
@@ -42,9 +42,13 @@ if (argv.type === "crypto") {
           if (err) return log(colors.red(err));
         }
       );
-      log(colors.green(`Success!\n`));
+      log(colors.green(`Success! 😀\n`));
     })
     .catch((err) => {
       log(colors.red(err));
     });
+}
+
+if (argv.type === "stock") {
+  log(colors.red(`Coming soon. 😅\n`));
 }
