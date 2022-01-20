@@ -6,7 +6,7 @@
 
 ## Usage
 
-`yarn build --currency=EUR --type=crypto --ticker=BTC`
+`yarn get --currency=EUR --type=crypto --ticker=BTC`
 
 - currency: EUR, USD, etc.
 - type: stock, crypto 
