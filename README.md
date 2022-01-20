@@ -13,5 +13,5 @@
 - ticker: VTI, SXR8.DE, BTC, etc.
 
 ## Data source
-- Stocks: Coming soon 😅
+- Stocks: https://finance.yahoo.com/
 - Cryptocurrencies: https://min-api.cryptocompare.com/

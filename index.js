@@ -9,6 +9,21 @@ const TICKET_TYPES = ["stock", "crypto"];
 const log = console.log;
 const argv = yargs(process.argv).argv;
 
+const saveFile = (historicalData) => {
+  const dir = "./output";
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir);
+  }
+  fs.writeFile(
+    `./output/${argv.type}_${argv.ticker}-${argv.currency}.json`,
+    JSON.stringify(historicalData, null, 2),
+    (err) => {
+      if (err) return log(colors.red(err));
+    }
+  );
+  log(colors.green(`Success! 😀\n`));
+};
+
 log(colors.yellow.bgBlack.underline("\nEnd of Day Historial Data\n"));
 
 if (!argv.ticker || !TICKET_TYPES.includes(argv.type) || !argv.currency) {
@@ -31,18 +46,7 @@ if (argv.type === "crypto") {
         acc[date] = day.close;
         return acc;
       }, {});
-      const dir = "./output";
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir);
-      }
-      fs.writeFile(
-        `./output/${argv.type}_${argv.ticker}.json`,
-        JSON.stringify(historicalData, null, 2),
-        (err) => {
-          if (err) return log(colors.red(err));
-        }
-      );
-      log(colors.green(`Success! 😀\n`));
+      saveFile(historicalData);
     })
     .catch((err) => {
       log(colors.red(err));
@@ -50,5 +54,32 @@ if (argv.type === "crypto") {
 }
 
 if (argv.type === "stock") {
-  log(colors.red(`Coming soon. 😅\n`));
+  axios
+    .get(
+      `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${argv.ticker}&range=100y&interval=1d`
+    )
+    .then((response) => {
+      if (
+        response.data.spark.result[0].response[0].meta.currency !==
+        argv.currency
+      ) {
+        log(colors.red(`Quotes not available in this currency 😖\n`));
+        return;
+      }
+      const historicalData =
+        response.data.spark.result[0].response[0].indicators.quote[0].close.reduce(
+          (acc, value, index) => {
+            const date = moment
+              .unix(response.data.spark.result[0].response[0].timestamp[index])
+              .format("YYYY-MM-DD");
+            acc[date] = value;
+            return acc;
+          },
+          {}
+        );
+      saveFile(historicalData);
+    })
+    .catch((err) => {
+      log(colors.red(err));
+    });
 }
