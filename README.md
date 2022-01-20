@@ -1,4 +1,5 @@
 # End of Day Historical Data
+A simple Node.js script to get End of Day Historial Data for cryptos and stocks
 ## Setup
 1. `yarn`
 2. `cp .env.example .env`
