@@ -56,21 +56,21 @@ if (argv.type === "crypto") {
 if (argv.type === "stock") {
   axios
     .get(
-      `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${argv.ticker}&range=100y&interval=1d`
+      `https://query1.finance.yahoo.com/v8/finance/chart/${argv.ticker}?interval=1d&range=100y`
     )
     .then((response) => {
       if (
-        response.data.spark.result[0].response[0].meta.currency !==
+        response.data.chart.result[0].meta.currency !==
         argv.currency
       ) {
         log(colors.red(`Quotes not available in this currency 😖\n`));
         return;
       }
       const historicalData =
-        response.data.spark.result[0].response[0].indicators.quote[0].close.reduce(
+        response.data.chart.result[0].indicators.quote[0].close.reduce(
           (acc, value, index) => {
             const date = moment
-              .unix(response.data.spark.result[0].response[0].timestamp[index])
+              .unix(response.data.chart.result[0].timestamp[index])
               .format("YYYY-MM-DD");
             acc[date] = value;
             return acc;
