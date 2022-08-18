@@ -97,7 +97,7 @@ if (argv.type === "etf") {
   }
   const currencyValue = ETF_CURRENCIES.indexOf(argv.currency);
   (async () => {
-    const browser = await puppeteer.launch({ headless: false });
+    const browser = await puppeteer.launch();
     const page = await browser.newPage();
     await page.goto(
       `https://www.justetf.com/en/etf-profile.html?0&isin=${argv.isin}#chart`
