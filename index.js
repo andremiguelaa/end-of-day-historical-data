@@ -97,61 +97,76 @@ if (argv.type === "etf") {
   }
   const currencyValue = ETF_CURRENCIES.indexOf(argv.currency);
   (async () => {
-    const browser = await puppeteer.launch();
+    const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
     await page.goto(
       `https://www.justetf.com/en/etf-profile.html?0&isin=${argv.isin}#chart`
     );
-    await page.waitForSelector(
-      "#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll"
-    );
-    await page.waitForTimeout(1000);
-    await page.click("#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll");
-    await page.waitForTimeout(1000);
-    let isValid;
-    await page
-      .click('[title="since inception"]')
-      .then(() => {
-        isValid = true;
-      })
-      .catch(() => {
-        isValid = false;
-      });
-    if (isValid) {
-      await page.waitForTimeout(1000);
-      await page.select(
-        '[name="chartPanel:chart:content:optionsPanel:selectContainer:valueType"]',
-        "market_value"
-      );
-      await page.waitForTimeout(1000);
-      await page.select(
-        '[name="chartPanel:chart:content:optionsPanel:selectContainer:currencies"]',
-        currencyValue.toString()
-      );
-      page.on("response", async (response) => {
-        if (
-          response
-            .url()
-            .indexOf(
-              "https://www.justetf.com/en/etf-profile.html?0-1.0-chartPanel-chart-content-optionsPanel-selectContainer-currencies&isin="
-            ) !== -1
-        ) {
-          const responseText = await response.text();
-          const data = eval(
-            responseText.split("setData(")[1].split(", false")[0]
+    await page.waitForSelector("#CybotCookiebotDialog");
+    await page.evaluate((sel) => {
+      document.querySelector(sel).remove();
+    }, "#CybotCookiebotDialogBodyUnderlay");
+    await page.evaluate((sel) => {
+      document.querySelector(sel).remove();
+    }, "#CybotCookiebotDialog");
+
+    page.on("response", async (response) => {
+      if (
+        response
+          .url()
+          .indexOf("https://www.justetf.com/style/daterangepicker.min.css") !==
+        -1
+      ) {
+        await page.waitForTimeout(2000);
+        let isValid;
+        await page
+          .click('[title="since inception"]')
+          .then(() => {
+            isValid = true;
+          })
+          .catch(() => {
+            isValid = false;
+          });
+        if (isValid) {
+          await page.select(
+            '[name="chartPanel:chart:content:optionsPanel:selectContainer:valueType"]',
+            "market_value"
           );
-          const historicalData = data.reduce((acc, day) => {
-            const date = moment.unix(day[0] / 1000).format("YYYY-MM-DD");
-            acc[date] = day[1];
-            return acc;
-          }, {});
-          saveFile(historicalData);
+          await page.select(
+            '[name="chartPanel:chart:content:optionsPanel:selectContainer:currencies"]',
+            currencyValue.toString()
+          );
+          page.on("response", async (response) => {
+            if (
+              response
+                .url()
+                .indexOf(
+                  "https://www.justetf.com/en/etf-profile.html?0-1.0-chartPanel-chart-content-optionsPanel-selectContainer-currencies&isin="
+                ) !== -1
+            ) {
+              const responseText = await response.text();
+              const data = eval(
+                responseText.split("setData(")[1].split(", false")[0]
+              );
+              const historicalData = data.reduce((acc, day) => {
+                const date = moment.unix(day[0] / 1000).format("YYYY-MM-DD");
+                acc[date] = day[1];
+                return acc;
+              }, {});
+              log(
+                colors.yellow(
+                  `Starting date: ${Object.keys(historicalData)[0]}`
+                )
+              );
+              saveFile(historicalData);
+              await browser.close();
+            }
+          });
+        } else {
+          log(colors.red(`Invalid ISIN 😖\n`));
           await browser.close();
         }
-      });
-    } else {
-      log(colors.red(`Invalid ISIN 😖\n`));
-      await browser.close();
-    }
+      }
+    });
   })();
 }
