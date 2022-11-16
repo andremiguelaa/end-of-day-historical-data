@@ -31,7 +31,7 @@ const saveFile = (historicalData) => {
   log(colors.green(`Success! 😀\n`));
 };
 
-log(colors.yellow.bgBlack.underline("\nEnd of Day Historial Data\n"));
+log(colors.yellow.bgBlack.underline("\nEnd of Day Historical Data\n"));
 
 if (
   !TICKER_TYPES.includes(argv.type) ||
