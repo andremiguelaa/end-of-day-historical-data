@@ -6,12 +6,13 @@ const axios = require("axios");
 const moment = require("moment");
 const puppeteer = require("puppeteer");
 
-const TICKET_TYPES = ["stock", "crypto", "etf"];
+const TICKER_TYPES = ["stock", "crypto", "etf"];
 const ETF_CURRENCIES = ["EUR", "USD", "CHF", "GBP"];
 const log = console.log;
 const argv = yargs(process.argv).argv;
 
 const saveFile = (historicalData) => {
+  log(colors.yellow(`Starting date: ${Object.keys(historicalData)[0]}`));
   const dir = "./output";
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir);
@@ -29,11 +30,10 @@ const saveFile = (historicalData) => {
 log(colors.yellow.bgBlack.underline("\nEnd of Day Historial Data\n"));
 
 if (
-  !TICKET_TYPES.includes(argv.type) ||
-  (!argv.ticker &&
-    argv.ticker !== "etf" &&
-    argv.type === "etf" &&
-    !argv.isin) ||
+  !TICKER_TYPES.includes(argv.type) ||
+  (argv.type === "etf" && !argv.isin) ||
+  (argv.type === "stock" && !argv.ticker) ||
+  (argv.type === "crypto" && !argv.ticker) ||
   !argv.currency
 ) {
   log(colors.red("Invalid arguments! 😖\n"));
@@ -153,11 +153,6 @@ if (argv.type === "etf") {
                 acc[date] = day[1];
                 return acc;
               }, {});
-              log(
-                colors.yellow(
-                  `Starting date: ${Object.keys(historicalData)[0]}`
-                )
-              );
               saveFile(historicalData);
               await browser.close();
             }
