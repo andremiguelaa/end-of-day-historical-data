@@ -17,8 +17,12 @@ const saveFile = (historicalData) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir);
   }
+  let filename = `${argv.type}_${argv.ticker || argv.isin}-${argv.currency}`;
+  if (argv.filename) {
+    filename = argv.filename;
+  }
   fs.writeFile(
-    `./output/${argv.type}_${argv.ticker || argv.isin}-${argv.currency}.json`,
+    `./output/${filename}.json`,
     JSON.stringify(historicalData, null, 2),
     (err) => {
       if (err) return log(colors.red(err));

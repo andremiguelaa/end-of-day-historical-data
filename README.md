@@ -10,11 +10,11 @@ A simple Node.js script to get End of Day Historial Data for cryptos and stocks
 
 ## Usage
 
-`yarn get --currency=EUR --type=crypto --ticker=BTC`
+`yarn get --currency=EUR --type=crypto --ticker=BTC [--filename=bitcoin]`
 
 or
 
-`yarn get --currency=EUR --type=etf --isin=IE00B5BMR087`
+`yarn get --currency=EUR --type=etf --isin=IE00B5BMR087 [--filename=my_favorite_etf]`
 
 - currency: EUR, USD, CHF, GBP, etc.
 - type: stock, crypto, etf
