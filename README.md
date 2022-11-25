@@ -1,4 +1,4 @@
-# End of Day Historical Data
+# End-of-Day Historical Data
 
 A simple Node.js script to get End of Day Historial Data for cryptos and stocks
 
