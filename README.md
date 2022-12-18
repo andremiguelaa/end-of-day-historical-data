@@ -1,6 +1,6 @@
 # End-of-Day Historical Data
 
-A simple Node.js script to get End of Day Historial Data for cryptos and stocks
+A simple Node.js script to get End of Day Historical Data for cryptos and stocks
 
 ## Setup
 
@@ -10,19 +10,22 @@ A simple Node.js script to get End of Day Historial Data for cryptos and stocks
 
 ## Usage
 
-`yarn get --currency=EUR --type=crypto --ticker=BTC [--filename=bitcoin]`
+`yarn get --type=etf --ticker=SXR8 --exchange=Xetra [--filename=my_favorite_etf]`
 
 or
 
-`yarn get --currency=EUR --type=etf --isin=IE00B5BMR087 [--filename=my_favorite_etf]`
+`yarn get --type=stock --ticker=AAPL --currency=EUR [--filename=my_favorite_stock]`
 
+or
+
+`yarn get --type=crypto --ticker=BTC --currency=EUR [--filename=my_favorite_crypto]`
+
+- ticker: AAPL, SXR8, BTC, etc.
+- exchange: Xetra, Frankfurt, NASDAQ, etc.
 - currency: EUR, USD, CHF, GBP, etc.
-- type: stock, crypto, etf
-- ticker: VTI, SXR8.DE, BTC, etc.
-- isin: IE00B5BMR087, IE00B4L5Y983, etc.
 
 ## Data source
 
+- ETFs: https://www.investing.com/
 - Stocks: https://finance.yahoo.com/
 - Cryptocurrencies: https://min-api.cryptocompare.com/
-- ETFs: https://www.justetf.com/
