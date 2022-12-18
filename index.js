@@ -121,21 +121,34 @@ if (argv.type === "crypto") {
               ) {
                 const responseText = await response.text();
                 const dom = new JSDOM(responseText);
-                const dataRows =
-                  dom.window.document.querySelectorAll("tbody tr");
-                const data = Array.from(dataRows)
-                  .reverse()
-                  .reduce((acc, row) => {
-                    const timestamp =
-                      row.children[0].getAttribute("data-real-value");
-                    const date = moment.unix(timestamp).format("YYYY-MM-DD");
-                    const value =
-                      row.children[1].getAttribute("data-real-value");
-                    if (timestamp) {
-                      acc[date] = value;
-                    }
-                    return acc;
-                  }, {});
+                const dataRows = Array.from(
+                  dom.window.document.querySelectorAll("tbody tr")
+                ).reverse();
+                const availableData = dataRows.reduce((acc, row) => {
+                  const timestamp =
+                    row.children[0].getAttribute("data-real-value");
+                  const date = moment.unix(timestamp).format("YYYY-MM-DD");
+                  const value = row.children[1].getAttribute("data-real-value");
+                  if (timestamp) {
+                    acc[date] = value;
+                  }
+                  return acc;
+                }, {});
+                const firstDate =
+                  dataRows[0].children[0].getAttribute("data-real-value") ||
+                  dataRows[1].children[0].getAttribute("data-real-value");
+                const lastDate = moment()
+                  .subtract(1, "days")
+                  .endOf("day")
+                  .format("X");
+                let data = {};
+                let date = moment.unix(firstDate).format("YYYY-MM-DD");
+                let lastValue;
+                while (moment(date).format("X") < lastDate) {
+                  data[date] = availableData[date] || lastValue;
+                  lastValue = data[date];
+                  date = moment(date).add(1, "days").format("YYYY-MM-DD");
+                }
                 saveFile(data);
                 await browser.close();
               }
