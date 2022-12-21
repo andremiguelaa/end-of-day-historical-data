@@ -8,7 +8,7 @@ const puppeteer = require("puppeteer");
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
 
-const TICKER_TYPES = ["etf", "stock", "crypto"];
+const TICKER_TYPES = ["etf", "stock", "crypto", "ppr"];
 const log = console.log;
 const argv = yargs(process.argv).argv;
 
@@ -22,7 +22,7 @@ const saveFile = (historicalData) => {
   let filename =
     argv.type === "etf"
       ? `${argv.type}_${argv.ticker}-${argv.exchange}`
-      : `${argv.type}_${argv.ticker}-${argv.currency}`;
+      : `${argv.type}_${argv.ticker}-${argv.currency || "EUR"}`;
   if (argv.filename) {
     filename = argv.filename;
   }
@@ -63,6 +63,38 @@ if (argv.type === "crypto") {
         acc[date] = day.close;
         return acc;
       }, {});
+      saveFile(historicalData);
+    })
+    .catch((err) => {
+      log(colors.red(err));
+    });
+} else if (argv.type === "ppr") {
+  axios
+    .get(`https://casadeinvestimentos.pt/sg_indexes.php`)
+    .then((response) => {
+      if (response.data.Response === "Error") {
+        log(colors.red(`${response.data.Message} 😖\n`));
+        return;
+      }
+      let historicalData;
+      if (argv.ticker === "PTCUUBHM0004") {
+        historicalData = response.data.founders.reduce((acc, day) => {
+          const date = day.x;
+          acc[date] = day.y;
+          return acc;
+        }, {});
+      }
+      if (argv.ticker === "PTCUUAHM0005") {
+        historicalData = response.data.prime.reduce((acc, day) => {
+          const date = day.x;
+          acc[date] = day.y;
+          return acc;
+        }, {});
+      }
+      if (!historicalData) {
+        log(colors.red("Invalid arguments! 😖\n"));
+        return;
+      }
       saveFile(historicalData);
     })
     .catch((err) => {
