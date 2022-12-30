@@ -109,7 +109,6 @@ if (argv.type === "crypto") {
     );
     await page.goto(`https://www.investing.com/`);
     await page.focus(".topBar .topBarSearch.topBarInputSelected input");
-    await page.keyboard.type(argv.ticker);
 
     page.on("response", async (response) => {
       if (
@@ -136,9 +135,16 @@ if (argv.type === "crypto") {
             }
             await page.goto(historicalDataLink);
             await page.click("#onetrust-accept-btn-handler");
-            await new Promise((resolve) => setTimeout(resolve, 500));
+            await page.waitForTimeout(5000);
+            await page.evaluate((sel) => {
+              var elements = document.querySelectorAll(sel);
+              for (var i = 0; i < elements.length; i++) {
+                elements[i].parentNode.removeChild(elements[i]);
+              }
+            }, ".generalOverlay, #promoAncmtPopup");
+
             await page.click("#flatDatePickerCanvasHol");
-            await new Promise((resolve) => setTimeout(resolve, 500));
+            await page.waitForTimeout(500);
             for (let index = 0; index < 10; index++) {
               await page.keyboard.press("Backspace");
             }
@@ -198,6 +204,7 @@ if (argv.type === "crypto") {
         }
       }
     });
+    await page.keyboard.type(argv.ticker);
   })();
 } else if (argv.type === "stock") {
   axios
