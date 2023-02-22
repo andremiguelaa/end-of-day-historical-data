@@ -123,17 +123,42 @@ if (argv.type === "crypto") {
             (quote) => quote.exchange === argv.exchange
           );
           if (exchange) {
-            let historicalDataLink;
             if (exchange.link.includes("?cid")) {
-              historicalDataLink =
-                `https://www.investing.com${exchange.link}`.replace(
-                  "?",
-                  "-historical-data?"
-                );
+              const cid = exchange.link.split("cid=")[1];
+              const initialDate = "1970-01-01";
+              const endDate = new Date().toISOString().slice(0, 10);
+              const data = await page.evaluate(
+                (cid, initialDate, endDate) => {
+                  return fetch(
+                    `https://api.investing.com/api/financialdata/historical/${cid}?start-date=${initialDate}&end-date=${endDate}&time-frame=Daily&add-missing-rows=false`,
+                    {
+                      headers: {
+                        "domain-id": "www",
+                      },
+                      method: "GET",
+                    }
+                  )
+                    .then((response) => {
+                      return response.json();
+                    })
+                    .catch((err) => {
+                      return "error";
+                    });
+                },
+                cid,
+                initialDate,
+                endDate
+              );
+              if (data === "error") {
+                log(colors.red("Unavailable ticker! 😖\n"));
+              } else {
+                console.log(data);
+                // TODO: PARSE DATA
+              }
+              await browser.close();
             } else {
-              historicalDataLink = `https://www.investing.com${exchange.link}-historical-data`;
-            }
-            await page.goto(historicalDataLink);
+              const historicalDataLink = `https://www.investing.com${exchange.link}-historical-data`;
+              /*
             await page.click("#onetrust-accept-btn-handler");
             await page.waitForTimeout(5000);
             await page.evaluate((sel) => {
@@ -143,13 +168,15 @@ if (argv.type === "crypto") {
               }
             }, ".generalOverlay, #promoAncmtPopup");
 
-            await page.click("#flatDatePickerCanvasHol");
+            await page.click("[class^=DatePickerWrapper_input__]");
             await page.waitForTimeout(500);
-            for (let index = 0; index < 10; index++) {
-              await page.keyboard.press("Backspace");
-            }
-            await page.keyboard.type("01/01/1970");
+            await page.$eval(
+              "[class^=NativeDateRangeInput_root__] input",
+              (el) => (el.value = "1970-01-01")
+            );
+            // await page.keyboard.type("01/01/1970");
             page.on("response", async (response) => {
+              console.log(response.url());
               if (
                 response
                   .url()
@@ -192,8 +219,16 @@ if (argv.type === "crypto") {
               }
             });
             await page
-              .waitForSelector("#applyBtn")
-              .then(() => page.click("#applyBtn"));
+              .waitForSelector(
+                '[class^="inv-button HistoryDatePicker_apply-button__"]'
+              )
+              .then(() =>
+                page.click(
+                  '[class^="inv-button HistoryDatePicker_apply-button__"]'
+                )
+              );
+            */
+            }
           } else {
             log(colors.red("Unavailable exchange! 😖\n"));
             await browser.close();
@@ -204,6 +239,7 @@ if (argv.type === "crypto") {
         }
       }
     });
+
     await page.keyboard.type(argv.ticker);
   })();
 } else if (argv.type === "stock") {
