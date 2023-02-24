@@ -13,7 +13,11 @@ const log = console.log;
 const argv = yargs(process.argv).argv;
 
 const saveFile = (historicalData) => {
-  log(colors.yellow(`Starting date: ${Object.keys(historicalData)[0]}`));
+  const datesAvailable = Object.keys(historicalData);
+  const startDate = datesAvailable[0];
+  const endDate = datesAvailable[datesAvailable.length - 1];
+  log(colors.yellow(`Starting date: ${startDate}`));
+  log(colors.yellow(`End date: ${endDate}`));
   const dir = "./output";
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir);
@@ -26,9 +30,20 @@ const saveFile = (historicalData) => {
   if (argv.filename) {
     filename = argv.filename;
   }
+
+  let date = startDate;
+  let curatedData = {};
+  let lastValue;
+  while (moment(date).unix() <= moment(endDate).unix()) {
+    curatedData[date] = historicalData[date] || lastValue;
+    if (historicalData[date]) {
+      lastValue = historicalData[date];
+    }
+    date = moment(date).add(1, "days").format("YYYY-MM-DD");
+  }
   fs.writeFile(
     `./output/${filename}.json`,
-    JSON.stringify(historicalData, null, 2),
+    JSON.stringify(curatedData, null, 2),
     (err) => {
       if (err) return log(colors.red(err));
     }
