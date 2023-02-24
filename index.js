@@ -152,82 +152,20 @@ if (argv.type === "crypto") {
               if (data === "error") {
                 log(colors.red("Unavailable ticker! 😖\n"));
               } else {
-                console.log(data);
-                // TODO: PARSE DATA
+                const historicalData = data.data
+                  .reverse()
+                  .reduce((acc, day) => {
+                    const date = moment
+                      .unix(day.rowDateRaw)
+                      .format("YYYY-MM-DD");
+                    acc[date] = Number(day.last_close);
+                    return acc;
+                  }, {});
+                saveFile(historicalData);
               }
               await browser.close();
             } else {
-              const historicalDataLink = `https://www.investing.com${exchange.link}-historical-data`;
-              /*
-            await page.click("#onetrust-accept-btn-handler");
-            await page.waitForTimeout(5000);
-            await page.evaluate((sel) => {
-              var elements = document.querySelectorAll(sel);
-              for (var i = 0; i < elements.length; i++) {
-                elements[i].parentNode.removeChild(elements[i]);
-              }
-            }, ".generalOverlay, #promoAncmtPopup");
-
-            await page.click("[class^=DatePickerWrapper_input__]");
-            await page.waitForTimeout(500);
-            await page.$eval(
-              "[class^=NativeDateRangeInput_root__] input",
-              (el) => (el.value = "1970-01-01")
-            );
-            // await page.keyboard.type("01/01/1970");
-            page.on("response", async (response) => {
-              console.log(response.url());
-              if (
-                response
-                  .url()
-                  .indexOf(
-                    "https://www.investing.com/instruments/HistoricalDataAjax"
-                  ) !== -1
-              ) {
-                const responseText = await response.text();
-                const dom = new JSDOM(responseText);
-                const dataRows = Array.from(
-                  dom.window.document.querySelectorAll("tbody tr")
-                ).reverse();
-                const availableData = dataRows.reduce((acc, row) => {
-                  const timestamp =
-                    row.children[0].getAttribute("data-real-value");
-                  const date = moment.unix(timestamp).format("YYYY-MM-DD");
-                  const value = row.children[1].getAttribute("data-real-value");
-                  if (timestamp) {
-                    acc[date] = value;
-                  }
-                  return acc;
-                }, {});
-                const firstDate =
-                  dataRows[0].children[0].getAttribute("data-real-value") ||
-                  dataRows[1].children[0].getAttribute("data-real-value");
-                const lastDate = moment()
-                  .subtract(1, "days")
-                  .endOf("day")
-                  .format("X");
-                let data = {};
-                let date = moment.unix(firstDate).format("YYYY-MM-DD");
-                let lastValue;
-                while (moment(date).format("X") < lastDate) {
-                  data[date] = availableData[date] || lastValue;
-                  lastValue = data[date];
-                  date = moment(date).add(1, "days").format("YYYY-MM-DD");
-                }
-                saveFile(data);
-                await browser.close();
-              }
-            });
-            await page
-              .waitForSelector(
-                '[class^="inv-button HistoryDatePicker_apply-button__"]'
-              )
-              .then(() =>
-                page.click(
-                  '[class^="inv-button HistoryDatePicker_apply-button__"]'
-                )
-              );
-            */
+              log(colors.red("Unavailable ticker! 😖\n"));
             }
           } else {
             log(colors.red("Unavailable exchange! 😖\n"));
