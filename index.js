@@ -8,7 +8,7 @@ const puppeteer = require("puppeteer");
 const jsdom = require("jsdom");
 const { JSDOM } = jsdom;
 
-const TICKER_TYPES = ["etf", "stock", "crypto", "ppr"];
+const TICKER_TYPES = ["etf", "stock", "crypto", "ppr", "fund"];
 const log = console.log;
 const argv = yargs(process.argv).argv;
 
@@ -115,7 +115,7 @@ if (argv.type === "crypto") {
     .catch((err) => {
       log(colors.red(err));
     });
-} else if (argv.type === "etf") {
+} else if (argv.type === "etf" || argv.type === "fund") {
   (async () => {
     const browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
@@ -156,7 +156,7 @@ if (argv.type === "crypto") {
                     .then((response) => {
                       return response.json();
                     })
-                    .catch((err) => {
+                    .catch(() => {
                       return "error";
                     });
                 },
@@ -180,7 +180,38 @@ if (argv.type === "crypto") {
               }
               await browser.close();
             } else {
-              log(colors.red("Unavailable ticker! 😖\n"));
+              const pairId = exchange.pairId;
+              const data = await page.evaluate((pairId) => {
+                return fetch(
+                  `https://api.investing.com/api/financialdata/${pairId}/historical/chart/?period=MAX&interval=P1D&pointscount=120`,
+                  {
+                    headers: {
+                      "domain-id": "www",
+                    },
+                    method: "GET",
+                  }
+                )
+                  .then((response) => {
+                    return response.json();
+                  })
+                  .catch(() => {
+                    return "error";
+                  });
+              }, pairId);
+              if (data === "error") {
+                log(colors.red("Unavailable ticker! 😖\n"));
+              } else {
+                const historicalData = data.data
+                  .reduce((acc, day) => {
+                    const date = moment
+                      .unix(day[0]/1000)
+                      .format("YYYY-MM-DD");
+                    acc[date] = Number(day[1]);
+                    return acc;
+                  }, {});
+                saveFile(historicalData);
+              }
+              await browser.close();
             }
           } else {
             log(colors.red("Unavailable exchange! 😖\n"));
