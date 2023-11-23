@@ -182,7 +182,7 @@ if (argv.type === "crypto") {
               }
               await browser.close();
             } else {
-              const pairId = exchange.pairId;
+              const pairId = exchange.id;
               const data = await page.evaluate((pairId) => {
                 return fetch(
                   `https://api.investing.com/api/financialdata/${pairId}/historical/chart/?period=MAX&interval=P1D&pointscount=120`,
