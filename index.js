@@ -123,23 +123,25 @@ if (argv.type === "crypto") {
       "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
     );
     await page.goto(`https://www.investing.com/`);
-    await page.focus(".topBar .topBarSearch.topBarInputSelected input");
+    await page.focus('input[data-test="search-section"]');
 
     page.on("response", async (response) => {
       if (
         response
           .url()
-          .indexOf("https://www.investing.com/search/service/searchTopBar") !==
-        -1
+          .indexOf(
+            `https://api.investing.com/api/search/v2/search?q=${argv.ticker}`
+          ) !== -1 &&
+        response._request._method !== "OPTIONS"
       ) {
         const responseJson = await response.json();
-        if (responseJson?.total?.quotes) {
+        if (responseJson?.quotes?.length > 0) {
           const exchange = responseJson.quotes.find(
             (quote) => quote.exchange === argv.exchange
           );
           if (exchange) {
-            if (exchange.link.includes("?cid")) {
-              const cid = exchange.link.split("cid=")[1];
+            if (exchange.url.includes("?cid")) {
+              const cid = exchange.url.split("cid=")[1];
               const initialDate = "1970-01-01";
               const endDate = new Date().toISOString().slice(0, 10);
               const data = await page.evaluate(
@@ -201,14 +203,11 @@ if (argv.type === "crypto") {
               if (data === "error") {
                 log(colors.red("Unavailable ticker! 😖\n"));
               } else {
-                const historicalData = data.data
-                  .reduce((acc, day) => {
-                    const date = moment
-                      .unix(day[0]/1000)
-                      .format("YYYY-MM-DD");
-                    acc[date] = Number(day[1]);
-                    return acc;
-                  }, {});
+                const historicalData = data.data.reduce((acc, day) => {
+                  const date = moment.unix(day[0] / 1000).format("YYYY-MM-DD");
+                  acc[date] = Number(day[1]);
+                  return acc;
+                }, {});
                 saveFile(historicalData);
               }
               await browser.close();
