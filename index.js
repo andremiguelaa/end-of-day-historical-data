@@ -116,34 +116,29 @@ if (argv.type === "crypto") {
       log(colors.red(err));
     });
 } else if (argv.type === "etf" || argv.type === "fund") {
-  (async () => {
-    const browser = await puppeteer.launch({ headless: true });
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
-    );
-    await page.goto(`https://www.investing.com/`);
-    await page.focus('input[data-test="search-section"]');
-
-    page.on("response", async (response) => {
-      if (
-        response
-          .url()
-          .indexOf(
-            `https://api.investing.com/api/search/v2/search?q=${argv.ticker}`
-          ) !== -1 &&
-        response._request._method !== "OPTIONS"
-      ) {
-        const responseJson = await response.json();
-        if (responseJson?.quotes?.length > 0) {
-          const exchange = responseJson.quotes.find(
-            (quote) => quote.exchange === argv.exchange
-          );
-          if (exchange) {
-            if (exchange.url.includes("?cid")) {
+  axios
+    .get(`https://api.investing.com/api/search/v2/search?q=${argv.ticker}`)
+    .then((response) => {
+      if (response.data?.quotes?.length > 0) {
+        const exchange = response.data.quotes.find(
+          (quote) => quote.exchange === argv.exchange
+        );
+        if (exchange) {
+          if (exchange.url.includes("?cid")) {
+            (async () => {
               const cid = exchange.url.split("cid=")[1];
               const initialDate = "1970-01-01";
               const endDate = new Date().toISOString().slice(0, 10);
+              const browser = await puppeteer.launch({
+                headless: "new",
+              });
+              const page = await browser.newPage();
+              await page.setUserAgent(
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
+              );
+              await page.goto(`https://www.investing.com/`, {
+                waitUntil: "networkidle0",
+              });
               const data = await page.evaluate(
                 (cid, initialDate, endDate) => {
                   return fetch(
@@ -181,8 +176,20 @@ if (argv.type === "crypto") {
                 saveFile(historicalData);
               }
               await browser.close();
-            } else {
+            })();
+          } else {
+            (async () => {
               const pairId = exchange.id;
+              const browser = await puppeteer.launch({
+                headless: "new",
+              });
+              const page = await browser.newPage();
+              await page.setUserAgent(
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
+              );
+              await page.goto(`https://www.investing.com/`, {
+                waitUntil: "networkidle2",
+              });
               const data = await page.evaluate((pairId) => {
                 return fetch(
                   `https://api.investing.com/api/financialdata/${pairId}/historical/chart/?period=MAX&interval=P1D&pointscount=120`,
@@ -211,20 +218,18 @@ if (argv.type === "crypto") {
                 saveFile(historicalData);
               }
               await browser.close();
-            }
-          } else {
-            log(colors.red("Unavailable exchange! 😖\n"));
-            await browser.close();
+            })();
           }
         } else {
-          log(colors.red("Unavailable ticker! 😖\n"));
-          await browser.close();
+          log(colors.red("Unavailable exchange! 😖\n"));
         }
+      } else {
+        log(colors.red("Unavailable ticker! 😖\n"));
       }
+    })
+    .catch((err) => {
+      log(colors.red(err));
     });
-
-    await page.keyboard.type(argv.ticker);
-  })();
 } else if (argv.type === "stock") {
   axios
     .get(
