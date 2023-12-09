@@ -5,8 +5,6 @@ const colors = require("colors");
 const axios = require("axios");
 const moment = require("moment");
 const puppeteer = require("puppeteer");
-const jsdom = require("jsdom");
-const { JSDOM } = jsdom;
 
 const TICKER_TYPES = ["etf", "stock", "crypto", "ppr", "fund"];
 const log = console.log;
@@ -55,7 +53,7 @@ log(colors.yellow.bgBlack.underline("\nEnd of Day Historical Data\n"));
 
 if (
   !TICKER_TYPES.includes(argv.type) ||
-  (argv.type === "etf" && (!argv.ticker || !argv.exchange)) ||
+  (argv.type === "etf" && (!argv.ticker || !argv.exchange) && !argv.cid) ||
   (argv.type === "stock" && (!argv.ticker || !argv.currency)) ||
   (argv.type === "crypto" && (!argv.ticker || !argv.currency))
 ) {
@@ -116,33 +114,133 @@ if (argv.type === "crypto") {
       log(colors.red(err));
     });
 } else if (argv.type === "etf" || argv.type === "fund") {
-  axios
-    .get(`https://api.investing.com/api/search/v2/search?q=${argv.ticker}`)
-    .then((response) => {
-      if (response.data?.quotes?.length > 0) {
-        const exchange = response.data.quotes.find(
-          (quote) => quote.exchange === argv.exchange
-        );
-        if (exchange) {
-          if (exchange.url.includes("?cid")) {
-            (async () => {
-              const cid = exchange.url.split("cid=")[1];
-              const initialDate = "1970-01-01";
-              const endDate = new Date().toISOString().slice(0, 10);
-              const browser = await puppeteer.launch({
-                headless: "new",
-              });
-              const page = await browser.newPage();
-              await page.setUserAgent(
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
-              );
-              await page.goto(`https://www.investing.com/`, {
-                waitUntil: "networkidle0",
-              });
-              const data = await page.evaluate(
-                (cid, initialDate, endDate) => {
+  if (argv.cid) {
+    (async () => {
+      const cid = argv.cid;
+      const initialDate = "1970-01-01";
+      const endDate = new Date().toISOString().slice(0, 10);
+      const browser = await puppeteer.launch({
+        headless: "new",
+      });
+      const page = await browser.newPage();
+      await page.setUserAgent(
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
+      );
+      await page.goto(`https://www.investing.com/`, {
+        waitUntil: "networkidle0",
+      });
+      const data = await page.evaluate(
+        (cid, initialDate, endDate) => {
+          return fetch(
+            `https://api.investing.com/api/financialdata/historical/${cid}?start-date=${initialDate}&end-date=${endDate}&time-frame=Daily&add-missing-rows=false`,
+            {
+              headers: {
+                "domain-id": "www",
+              },
+              method: "GET",
+            }
+          )
+            .then((response) => {
+              return response.json();
+            })
+            .catch(() => {
+              return "error";
+            });
+        },
+        cid,
+        initialDate,
+        endDate
+      );
+      if (data === "error") {
+        log(colors.red("Unavailable ticker! 😖\n"));
+      } else {
+        const historicalData = data.data.reverse().reduce((acc, day) => {
+          const date = moment.unix(day.rowDateRaw).format("YYYY-MM-DD");
+          acc[date] = Number(day.last_close);
+          return acc;
+        }, {});
+        saveFile(historicalData);
+      }
+      await browser.close();
+    })();
+  } else {
+    axios
+      .get(`https://api.investing.com/api/search/v2/search?q=${argv.ticker}`)
+      .then((response) => {
+        if (response.data?.quotes?.length > 0) {
+          const exchange = response.data.quotes.find(
+            (quote) => quote.exchange === argv.exchange
+          );
+          if (exchange) {
+            if (exchange.url.includes("?cid")) {
+              (async () => {
+                const cid = exchange.url.split("cid=")[1];
+                const initialDate = "1970-01-01";
+                const endDate = new Date().toISOString().slice(0, 10);
+                const browser = await puppeteer.launch({
+                  headless: "new",
+                });
+                const page = await browser.newPage();
+                await page.setUserAgent(
+                  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
+                );
+                await page.goto(`https://www.investing.com/`, {
+                  waitUntil: "networkidle0",
+                });
+                const data = await page.evaluate(
+                  (cid, initialDate, endDate) => {
+                    return fetch(
+                      `https://api.investing.com/api/financialdata/historical/${cid}?start-date=${initialDate}&end-date=${endDate}&time-frame=Daily&add-missing-rows=false`,
+                      {
+                        headers: {
+                          "domain-id": "www",
+                        },
+                        method: "GET",
+                      }
+                    )
+                      .then((response) => {
+                        return response.json();
+                      })
+                      .catch(() => {
+                        return "error";
+                      });
+                  },
+                  cid,
+                  initialDate,
+                  endDate
+                );
+                if (data === "error") {
+                  log(colors.red("Unavailable ticker! 😖\n"));
+                } else {
+                  const historicalData = data.data
+                    .reverse()
+                    .reduce((acc, day) => {
+                      const date = moment
+                        .unix(day.rowDateRaw)
+                        .format("YYYY-MM-DD");
+                      acc[date] = Number(day.last_close);
+                      return acc;
+                    }, {});
+                  saveFile(historicalData);
+                }
+                await browser.close();
+              })();
+            } else {
+              (async () => {
+                const pairId = exchange.id;
+                const browser = await puppeteer.launch({
+                  headless: "new",
+                });
+                const page = await browser.newPage();
+                await page.setUserAgent(
+                  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
+                );
+                await page.goto(`https://www.investing.com/`, {
+                  waitUntil: "networkidle2",
+                });
+                const data = await page.evaluate((pairId) => {
                   return fetch(
-                    `https://api.investing.com/api/financialdata/historical/${cid}?start-date=${initialDate}&end-date=${endDate}&time-frame=Daily&add-missing-rows=false`,
+                    `https://api.investing.com/api/financialdata/${pairId}/historical/chart/?period=MAX&interval=P1D&pointscount=120`,
                     {
                       headers: {
                         "domain-id": "www",
@@ -156,80 +254,33 @@ if (argv.type === "crypto") {
                     .catch(() => {
                       return "error";
                     });
-                },
-                cid,
-                initialDate,
-                endDate
-              );
-              if (data === "error") {
-                log(colors.red("Unavailable ticker! 😖\n"));
-              } else {
-                const historicalData = data.data
-                  .reverse()
-                  .reduce((acc, day) => {
+                }, pairId);
+                if (data === "error") {
+                  log(colors.red("Unavailable ticker! 😖\n"));
+                } else {
+                  const historicalData = data.data.reduce((acc, day) => {
                     const date = moment
-                      .unix(day.rowDateRaw)
+                      .unix(day[0] / 1000)
                       .format("YYYY-MM-DD");
-                    acc[date] = Number(day.last_close);
+                    acc[date] = Number(day[1]);
                     return acc;
                   }, {});
-                saveFile(historicalData);
-              }
-              await browser.close();
-            })();
+                  saveFile(historicalData);
+                }
+                await browser.close();
+              })();
+            }
           } else {
-            (async () => {
-              const pairId = exchange.id;
-              const browser = await puppeteer.launch({
-                headless: "new",
-              });
-              const page = await browser.newPage();
-              await page.setUserAgent(
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
-              );
-              await page.goto(`https://www.investing.com/`, {
-                waitUntil: "networkidle2",
-              });
-              const data = await page.evaluate((pairId) => {
-                return fetch(
-                  `https://api.investing.com/api/financialdata/${pairId}/historical/chart/?period=MAX&interval=P1D&pointscount=120`,
-                  {
-                    headers: {
-                      "domain-id": "www",
-                    },
-                    method: "GET",
-                  }
-                )
-                  .then((response) => {
-                    return response.json();
-                  })
-                  .catch(() => {
-                    return "error";
-                  });
-              }, pairId);
-              if (data === "error") {
-                log(colors.red("Unavailable ticker! 😖\n"));
-              } else {
-                const historicalData = data.data.reduce((acc, day) => {
-                  const date = moment.unix(day[0] / 1000).format("YYYY-MM-DD");
-                  acc[date] = Number(day[1]);
-                  return acc;
-                }, {});
-                saveFile(historicalData);
-              }
-              await browser.close();
-            })();
+            log(colors.red("Unavailable exchange! 😖\n"));
           }
         } else {
-          log(colors.red("Unavailable exchange! 😖\n"));
+          log(colors.red("Unavailable ticker! 😖\n"));
         }
-      } else {
-        log(colors.red("Unavailable ticker! 😖\n"));
-      }
-    })
-    .catch((err) => {
-      log(colors.red(err));
-    });
+      })
+      .catch((err) => {
+        log(colors.red(err));
+      });
+  }
 } else if (argv.type === "stock") {
   axios
     .get(
