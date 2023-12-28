@@ -262,7 +262,7 @@ if (argv.type === "crypto") {
                     const date = moment
                       .unix(day[0] / 1000)
                       .format("YYYY-MM-DD");
-                    acc[date] = Number(day[1]);
+                    acc[date] = Number(day[4]);
                     return acc;
                   }, {});
                   saveFile(historicalData);
