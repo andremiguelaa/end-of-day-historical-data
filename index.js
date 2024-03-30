@@ -13,7 +13,7 @@ const log = console.log;
 const argv = yargs(process.argv).argv;
 
 const saveFile = (historicalData, fill = true) => {
-  const datesAvailable = Object.keys(historicalData);
+  const datesAvailable = Object.keys(historicalData).sort();
   const startDate = datesAvailable[0];
   const endDate = datesAvailable[datesAvailable.length - 1];
   log(colors.yellow(`Starting date: ${startDate}`));
