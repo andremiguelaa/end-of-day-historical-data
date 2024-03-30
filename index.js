@@ -11,7 +11,7 @@ const EURIBOR_TICKERS = { "1w": 5, "1m": 1, "3m": 2, "6m": 3, "12m": 4 };
 const log = console.log;
 const argv = yargs(process.argv).argv;
 
-const saveFile = (historicalData) => {
+const saveFile = (historicalData, fill = true) => {
   const datesAvailable = Object.keys(historicalData);
   const startDate = datesAvailable[0];
   const endDate = datesAvailable[datesAvailable.length - 1];
@@ -37,9 +37,13 @@ const saveFile = (historicalData) => {
   let curatedData = {};
   let lastValue;
   while (moment(date).unix() <= moment(endDate).unix()) {
-    curatedData[date] = historicalData[date] || lastValue;
-    if (historicalData[date]) {
-      lastValue = historicalData[date];
+    if (fill) {
+      curatedData[date] = historicalData[date] || lastValue;
+      if (historicalData[date]) {
+        lastValue = historicalData[date];
+      }
+    } else {
+      curatedData[date] = historicalData[date];
     }
     date = moment(date).add(1, "days").format("YYYY-MM-DD");
   }
@@ -128,7 +132,7 @@ if (argv.type === "crypto") {
         acc[date] = Number(day[1]);
         return acc;
       }, {});
-      saveFile(historicalData);
+      saveFile(historicalData, false);
     }
     await browser.close();
   })();
