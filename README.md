@@ -20,7 +20,11 @@ or
 
 `yarn get --type=crypto --ticker=BTC --currency=EUR [--filename=my_favorite_crypto]`
 
-- ticker: AAPL, SXR8, BTC, etc.
+or
+
+`yarn get --type=euribor --ticker=12m [--filename=my_favorite_euribor]`
+
+- ticker: AAPL, SXR8, BTC, 1w, 1m, 3m, 6m, 12m, etc.
 - exchange: Xetra, Frankfurt, NASDAQ, etc.
 - currency: EUR, USD, CHF, GBP, etc.
 
@@ -29,3 +33,4 @@ or
 - ETFs: https://www.investing.com/
 - Stocks: https://finance.yahoo.com/
 - Cryptocurrencies: https://min-api.cryptocompare.com/
+- Euribor: https://www.euribor-rates.eu

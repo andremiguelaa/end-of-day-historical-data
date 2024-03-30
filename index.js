@@ -6,7 +6,8 @@ const axios = require("axios");
 const moment = require("moment");
 const puppeteer = require("puppeteer");
 
-const TICKER_TYPES = ["etf", "stock", "crypto", "ppr", "fund"];
+const TICKER_TYPES = ["etf", "stock", "crypto", "ppr", "fund", "euribor"];
+const EURIBOR_TICKERS = { "1w": 5, "1m": 1, "3m": 2, "6m": 3, "12m": 4 };
 const log = console.log;
 const argv = yargs(process.argv).argv;
 
@@ -21,12 +22,15 @@ const saveFile = (historicalData) => {
     fs.mkdirSync(dir);
   }
 
-  let filename =
-    argv.type === "etf"
-      ? `${argv.type}_${argv.ticker}-${argv.exchange}`
-      : `${argv.type}_${argv.ticker}-${argv.currency || "EUR"}`;
+  let filename;
   if (argv.filename) {
     filename = argv.filename;
+  } else if (argv.type === "etf") {
+    filename = `${argv.type}_${argv.ticker}-${argv.exchange}`;
+  } else if (argv.type === "euribor") {
+    filename = `${argv.type}_${argv.ticker}`;
+  } else {
+    filename = `${argv.type}_${argv.ticker}-${argv.currency || "EUR"}`;
   }
 
   let date = startDate;
@@ -55,7 +59,9 @@ if (
   !TICKER_TYPES.includes(argv.type) ||
   (argv.type === "etf" && (!argv.ticker || !argv.exchange) && !argv.cid) ||
   (argv.type === "stock" && (!argv.ticker || !argv.currency)) ||
-  (argv.type === "crypto" && (!argv.ticker || !argv.currency))
+  (argv.type === "crypto" && (!argv.ticker || !argv.currency)) ||
+  (argv.type === "euribor" &&
+    !Object.keys(EURIBOR_TICKERS).includes(argv.ticker))
 ) {
   log(colors.red("Invalid arguments! 😖\n"));
   return;
@@ -81,6 +87,51 @@ if (argv.type === "crypto") {
     .catch((err) => {
       log(colors.red(err));
     });
+} else if (argv.type === "euribor") {
+  (async () => {
+    const browser = await puppeteer.launch({
+      headless: "new",
+    });
+    const page = await browser.newPage();
+    await page.setUserAgent(
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
+    );
+    await page.goto("https://www.euribor-rates.eu/en/current-euribor-rates/");
+    const data = await page.evaluate(
+      (argv, EURIBOR_TICKERS) => {
+        return fetch(
+          `https://www.euribor-rates.eu/umbraco/api/euriborpageapi/highchartsdata?series[0]=${
+            EURIBOR_TICKERS[argv.ticker]
+          }&minticks=915148800000&maxticks=${Date.now()}`,
+          {
+            headers: {
+              "domain-id": "www",
+            },
+            method: "GET",
+          }
+        )
+          .then((response) => {
+            return response.json();
+          })
+          .catch(() => {
+            return "error";
+          });
+      },
+      argv,
+      EURIBOR_TICKERS
+    );
+    if (data === "error") {
+      log(colors.red("Unavailable ticker! 😖\n"));
+    } else {
+      const historicalData = data[0].Data.reduce((acc, day) => {
+        const date = moment.unix(day[0] / 1000).format("YYYY-MM-DD");
+        acc[date] = Number(day[1]);
+        return acc;
+      }, {});
+      saveFile(historicalData);
+    }
+    await browser.close();
+  })();
 } else if (argv.type === "ppr") {
   axios
     .get(`https://casadeinvestimentos.pt/sg_indexes.php`)
