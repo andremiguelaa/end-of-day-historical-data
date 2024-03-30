@@ -5,6 +5,7 @@ const colors = require("colors");
 const axios = require("axios");
 const moment = require("moment");
 const puppeteer = require("puppeteer");
+const lodash = require("lodash");
 
 const TICKER_TYPES = ["etf", "stock", "crypto", "ppr", "fund", "euribor"];
 const EURIBOR_TICKERS = { "1w": 5, "1m": 1, "3m": 2, "6m": 3, "12m": 4 };
@@ -101,7 +102,7 @@ if (argv.type === "crypto") {
       "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
     );
     await page.goto("https://www.euribor-rates.eu/en/current-euribor-rates/");
-    const data = await page.evaluate(
+    const dataFull = await page.evaluate(
       (argv, EURIBOR_TICKERS) => {
         return fetch(
           `https://www.euribor-rates.eu/umbraco/api/euriborpageapi/highchartsdata?series[0]=${
@@ -124,15 +125,45 @@ if (argv.type === "crypto") {
       argv,
       EURIBOR_TICKERS
     );
-    if (data === "error") {
-      log(colors.red("Unavailable ticker! 😖\n"));
+    const data12m = await page.evaluate(
+      (argv, EURIBOR_TICKERS) => {
+        return fetch(
+          `https://www.euribor-rates.eu/umbraco/api/euriborpageapi/highchartsdata?series[0]=${
+            EURIBOR_TICKERS[argv.ticker]
+          }&minticks=${
+            Date.now() - 365 * 24 * 60 * 60 * 1000
+          }&maxticks=${Date.now()}`,
+          {
+            headers: {
+              "domain-id": "www",
+            },
+            method: "GET",
+          }
+        )
+          .then((response) => {
+            return response.json();
+          })
+          .catch(() => {
+            return "error";
+          });
+      },
+      argv,
+      EURIBOR_TICKERS
+    );
+    if (dataFull === "error" || data12m === "error") {
+      log(colors.red("Error fetching data! 😖\n"));
     } else {
-      const historicalData = data[0].Data.reduce((acc, day) => {
+      const historicalDataFull = dataFull[0].Data.reduce((acc, day) => {
         const date = moment.unix(day[0] / 1000).format("YYYY-MM-DD");
         acc[date] = Number(day[1]);
         return acc;
       }, {});
-      saveFile(historicalData, false);
+      const historicalData12m = data12m[0].Data.reduce((acc, day) => {
+        const date = moment.unix(day[0] / 1000).format("YYYY-MM-DD");
+        acc[date] = Number(day[1]);
+        return acc;
+      }, {});
+      saveFile(lodash.merge(historicalDataFull, historicalData12m), false);
     }
     await browser.close();
   })();
