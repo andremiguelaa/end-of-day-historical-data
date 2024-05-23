@@ -168,32 +168,30 @@ if (argv.type === "crypto") {
     await browser.close();
   })();
 } else if (argv.type === "ppr") {
+  let url;
+  if (argv.ticker === "PTCUUBHM0004") {
+    url = `https://casa-de-investimentos-api.vercel.app/api/get-excel-data?worksheet=grafico_founders&range=B5:C10000`;
+  } else if (argv.ticker === "PTCUUAHM0005") {
+    url = `https://casa-de-investimentos-api.vercel.app/api/get-excel-data?worksheet=grafico_prime&range=B5:C10000`;
+  } else {
+    log(colors.red("Invalid arguments! 😖\n"));
+    return;
+  }
   axios
-    .get(`https://casadeinvestimentos.pt/sg_indexes.php`)
+    .get(url)
     .then((response) => {
-      if (response.data.Response === "Error") {
-        log(colors.red(`${response.data.Message} 😖\n`));
-        return;
-      }
-      let historicalData;
-      if (argv.ticker === "PTCUUBHM0004") {
-        historicalData = response.data.founders.reduce((acc, day) => {
-          const date = day.x;
-          acc[date] = day.y;
-          return acc;
-        }, {});
-      }
-      if (argv.ticker === "PTCUUAHM0005") {
-        historicalData = response.data.prime.reduce((acc, day) => {
-          const date = day.x;
-          acc[date] = day.y;
-          return acc;
-        }, {});
-      }
-      if (!historicalData) {
-        log(colors.red("Invalid arguments! 😖\n"));
-        return;
-      }
+      const historicalData = response.data.reduce((acc, day) => {
+        if (day[0]) {
+          const date = moment(
+            new Date(
+              new Date(1900, 0, 1).getTime() +
+                (day[0] - 2) * 24 * 60 * 60 * 1000
+            )
+          ).format("YYYY-MM-DD");
+          acc[date] = day[1];
+        }
+        return acc;
+      }, {});
       saveFile(historicalData);
     })
     .catch((err) => {
