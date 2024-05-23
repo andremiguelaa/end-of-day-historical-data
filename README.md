@@ -10,7 +10,7 @@ A simple Node.js script to get End of Day Historical Data for cryptos and stocks
 
 ## Usage
 
-`yarn get --type=etf --ticker=SXR8 --exchange=Xetra [--filename=my_favorite_etf]`
+`yarn get --type=etf --ticker=IE00B5BMR087 [--filename=my_favorite_etf]`
 
 or
 
@@ -24,13 +24,12 @@ or
 
 `yarn get --type=euribor --ticker=12m [--filename=my_favorite_euribor]`
 
-- ticker: AAPL, SXR8, BTC, 1w, 1m, 3m, 6m, 12m, etc.
-- exchange: Xetra, Frankfurt, NASDAQ, etc.
+- ticker: IE00B5BMR087, AAPL, BTC, 1w, 1m, 3m, 6m, 12m, etc.
 - currency: EUR, USD, CHF, GBP, etc.
 
 ## Data source
 
-- ETFs: https://www.investing.com/
+- ETFs: https://www.justetf.com/
 - Stocks: https://finance.yahoo.com/
 - Cryptocurrencies: https://min-api.cryptocompare.com/
 - Euribor: https://www.euribor-rates.eu

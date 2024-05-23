@@ -7,7 +7,7 @@ const moment = require("moment");
 const puppeteer = require("puppeteer");
 const lodash = require("lodash");
 
-const TICKER_TYPES = ["etf", "stock", "crypto", "ppr", "fund", "euribor"];
+const TICKER_TYPES = ["etf", "stock", "crypto", "ppr", "euribor"];
 const EURIBOR_TICKERS = { "1w": 5, "1m": 1, "3m": 2, "6m": 3, "12m": 4 };
 const log = console.log;
 const argv = yargs(process.argv).argv;
@@ -26,9 +26,7 @@ const saveFile = (historicalData, fill = true) => {
   let filename;
   if (argv.filename) {
     filename = argv.filename;
-  } else if (argv.type === "etf") {
-    filename = `${argv.type}_${argv.ticker}-${argv.exchange}`;
-  } else if (argv.type === "euribor") {
+  } else if (argv.type === "etf" || argv.type === "euribor") {
     filename = `${argv.type}_${argv.ticker}`;
   } else {
     filename = `${argv.type}_${argv.ticker}-${argv.currency || "EUR"}`;
@@ -62,7 +60,7 @@ log(colors.yellow.bgBlack.underline("\nEnd of Day Historical Data\n"));
 
 if (
   !TICKER_TYPES.includes(argv.type) ||
-  (argv.type === "etf" && (!argv.ticker || !argv.exchange) && !argv.cid) ||
+  (argv.type === "etf" && !argv.ticker) ||
   (argv.type === "stock" && (!argv.ticker || !argv.currency)) ||
   (argv.type === "crypto" && (!argv.ticker || !argv.currency)) ||
   (argv.type === "euribor" &&
@@ -197,168 +195,31 @@ if (argv.type === "crypto") {
     .catch((err) => {
       log(colors.red(err));
     });
-} else if (argv.type === "etf" || argv.type === "fund") {
-  if (argv.cid) {
-    (async () => {
-      const cid = argv.cid;
-      const initialDate = "1970-01-01";
-      const endDate = new Date().toISOString().slice(0, 10);
-      const browser = await puppeteer.launch({
-        headless: "new",
-      });
-      const page = await browser.newPage();
-      await page.setUserAgent(
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
-      );
-      const data = await page.evaluate(
-        (cid, initialDate, endDate) => {
-          return fetch(
-            `https://api.investing.com/api/financialdata/historical/${cid}?start-date=${initialDate}&end-date=${endDate}&time-frame=Daily&add-missing-rows=false`,
-            {
-              headers: {
-                "domain-id": "www",
-              },
-              method: "GET",
-            }
-          )
-            .then((response) => {
-              return response.json();
-            })
-            .catch(() => {
-              return "error";
-            });
-        },
-        cid,
-        initialDate,
-        endDate
-      );
-      if (data === "error") {
-        log(colors.red("Unavailable ticker! 😖\n"));
-      } else {
-        const historicalData = data.data.reverse().reduce((acc, day) => {
-          const date = moment.unix(day.rowDateRaw).format("YYYY-MM-DD");
-          acc[date] = Number(day.last_close);
+} else if (argv.type === "etf") {
+  axios
+    .get(
+      `https://www.justetf.com/api/etfs/${
+        argv.ticker
+      }/performance-chart?locale=en&currency=${
+        argv.currency || "EUR"
+      }&valuesType=MARKET_VALUE&reduceData=false&includeDividends=true&dateFrom=1970-01-01&dateTo=${moment().format(
+        "YYYY-MM-DD"
+      )}`
+    )
+    .then((response) => {
+      if (response?.data?.series) {
+        const historicalData = response.data.series.reduce((acc, day) => {
+          acc[day.date] = day.value.raw;
           return acc;
         }, {});
         saveFile(historicalData);
+      } else {
+        log(colors.red("Unavailable ticker! 😖\n"));
       }
-      await browser.close();
-    })();
-  } else {
-    axios
-      .get(`https://api.investing.com/api/search/v2/search?q=${argv.ticker}`)
-      .then((response) => {
-        if (response.data?.quotes?.length > 0) {
-          const exchange = response.data.quotes.find(
-            (quote) => quote.exchange === argv.exchange
-          );
-          if (exchange) {
-            if (exchange.url.includes("?cid")) {
-              (async () => {
-                const cid = exchange.url.split("cid=")[1];
-                const initialDate = "1970-01-01";
-                const endDate = new Date().toISOString().slice(0, 10);
-                const browser = await puppeteer.launch({
-                  headless: "new",
-                });
-                const page = await browser.newPage();
-                await page.setUserAgent(
-                  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
-                );
-                const data = await page.evaluate(
-                  (cid, initialDate, endDate) => {
-                    return fetch(
-                      `https://api.investing.com/api/financialdata/historical/${cid}?start-date=${initialDate}&end-date=${endDate}&time-frame=Daily&add-missing-rows=false`,
-                      {
-                        headers: {
-                          "domain-id": "www",
-                        },
-                        method: "GET",
-                      }
-                    )
-                      .then((response) => {
-                        return response.json();
-                      })
-                      .catch(() => {
-                        return "error";
-                      });
-                  },
-                  cid,
-                  initialDate,
-                  endDate
-                );
-                if (data === "error") {
-                  log(colors.red("Unavailable ticker! 😖\n"));
-                } else {
-                  const historicalData = data.data
-                    .reverse()
-                    .reduce((acc, day) => {
-                      const date = moment
-                        .unix(day.rowDateRaw)
-                        .format("YYYY-MM-DD");
-                      acc[date] = Number(day.last_close);
-                      return acc;
-                    }, {});
-                  saveFile(historicalData);
-                }
-                await browser.close();
-              })();
-            } else {
-              (async () => {
-                const pairId = exchange.id;
-                const browser = await puppeteer.launch({
-                  headless: "new",
-                });
-                const page = await browser.newPage();
-                await page.setUserAgent(
-                  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36"
-                );
-                await page.goto(`https://www.investing.com/`, {
-                  waitUntil: "networkidle2",
-                });
-                const data = await page.evaluate((pairId) => {
-                  return fetch(
-                    `https://api.investing.com/api/financialdata/${pairId}/historical/chart/?period=MAX&interval=P1D&pointscount=120`,
-                    {
-                      headers: {
-                        "domain-id": "www",
-                      },
-                      method: "GET",
-                    }
-                  )
-                    .then((response) => {
-                      return response.json();
-                    })
-                    .catch(() => {
-                      return "error";
-                    });
-                }, pairId);
-                if (data === "error") {
-                  log(colors.red("Unavailable ticker! 😖\n"));
-                } else {
-                  const historicalData = data.data.reduce((acc, day) => {
-                    const date = moment
-                      .unix(day[0] / 1000)
-                      .format("YYYY-MM-DD");
-                    acc[date] = Number(day[4]);
-                    return acc;
-                  }, {});
-                  saveFile(historicalData);
-                }
-                await browser.close();
-              })();
-            }
-          } else {
-            log(colors.red("Unavailable exchange! 😖\n"));
-          }
-        } else {
-          log(colors.red("Unavailable ticker! 😖\n"));
-        }
-      })
-      .catch((err) => {
-        log(colors.red(err));
-      });
-  }
+    })
+    .catch((err) => {
+      log(colors.red(err));
+    });
 } else if (argv.type === "stock") {
   axios
     .get(
